@@ -19,6 +19,14 @@ from nasa_power import fetch_nasa_power_data # Ensure nasa_power.py is in the sa
 from utils.ui_helpers import process_and_display_prediction
 from utils.inference import run_hyperspectral_analysis_onnx
 from utils.pdf_report import generate_pdf_report
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode
+from streamlit_folium import st_folium
+import folium
+from nasa_power import get_yearly_summary
+from utils.translator import t
+from utils.market_data import fetch_market_prices
+from streamlit_audiorecorder import audiorecorder
+import assemblyai as aai
 
 # ====================================================================
 # Page Configuration & API Setup
@@ -27,8 +35,14 @@ st.set_page_config(
     page_title="Smart Agriculture AI",
     page_icon="🌾",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
+
+st.sidebar.title("Language Selection")
+lang = st.sidebar.selectbox("Select Language", ["en", "hi", "mr"], format_func=lambda x: {"en": "English", "hi": "हिंदी", "mr": "मराठी"}[x])
+if 'lang' not in st.session_state or st.session_state['lang'] != lang:
+    st.session_state['lang'] = lang
+    st.experimental_rerun()
 
 # ####################################################################
 # # --- Secure API Key Handling with Streamlit Secrets ---
@@ -157,8 +171,8 @@ def generate_combined_report(lat, lon, soil_type, irrigation, farm_size, weather
 #                    STREAMLIT UI LAYOUT
 # ====================================================================
 
-st.title("🌱 Smart Agriculture AI Dashboard")
-st.markdown("A one-stop AI assistant for **crop planning, plant health, hyperspectral analysis, and weather insights**.")
+st.title(f"🌱 {t('app_title')}")
+st.markdown(t('app_tagline'))
 st.divider()
 
 # --- Initialize session state ---
@@ -171,22 +185,26 @@ if 'report_content' not in st.session_state: st.session_state['report_content'] 
 # --------------------------------------------------------------------
 # 📍 Step 1: Farm Location & Setup
 # --------------------------------------------------------------------
-st.header("📍 Step 1: Enter Your Farm Details")
-st.info("Your location is used to automatically fetch weather data and provide AI-powered suggestions.")
+st.header(t('step1_header'))
+st.info(t('step1_info'))
 
 col1, col2 = st.columns([2, 1])
 with col1:
-    location_name = st.text_input("Farm Location (e.g., 'Pune, Maharashtra')", key="location_name")
-    if st.button("Set Location"):
-        with st.spinner(f"Finding coordinates for {location_name}..."):
-            lat, lon = get_coords_from_place_name(location_name)
-            if lat and lon:
-                st.session_state['lat'], st.session_state['lon'] = lat, lon
-                st.success(f"📍 Location Set: {location_name} (Lat: {lat:.4f}, Lon: {lon:.4f})")
-            else:
-                st.error(f"Could not find coordinates for '{location_name}'. Please be more specific.")
+    st.write("Click on the map to select your farm's location.")
+    m = folium.Map(location=[20.5937, 78.9629], zoom_start=5)
+    map_data = st_folium(m, width=700, height=500)
+
+    if map_data and map_data["last_clicked"]:
+        lat, lon = map_data["last_clicked"]["lat"], map_data["last_clicked"]["lng"]
+        st.session_state['lat'], st.session_state['lon'] = lat, lon
+        st.success(f"📍 Location Set: (Lat: {lat:.4f}, Lon: {lon:.4f})")
+        # To get the location name, we would need to do a reverse geocoding lookup.
+        # For now, we will just use the coordinates.
+        st.session_state['location_name'] = f"{lat:.4f}, {lon:.4f}"
+
 with col2:
     farm_size = st.number_input("Farm Size (in acres)", min_value=0.5, max_value=500.0, value=2.5, step=0.5)
+    location_name = st.text_input("Location Name (optional, for report)", st.session_state.get('location_name', ''))
 
 # --- AI Suggestion for Soil and Irrigation ---
 if st.session_state['lat'] and GEMINI_API_KEY:
@@ -216,8 +234,8 @@ st.divider()
 # --------------------------------------------------------------------
 # 🌾 Step 2: AI Crop & Climate Report
 # --------------------------------------------------------------------
-st.header("🌾 Step 2: AI Crop & Climate Report")
-st.write("Get a unified report with detailed climate analysis and crop suggestions for your farm.")
+st.header(t('step2_header'))
+st.write(t('step2_info'))
 if st.button("📝 Generate Combined Agri-Report"):
     if not st.session_state['lat'] or not st.session_state['lon']:
         st.warning("Please set your farm location in Step 1 first.")
@@ -239,8 +257,8 @@ st.divider()
 # --------------------------------------------------------------------
 # 🍃 Step 3: Plant Health Check
 # --------------------------------------------------------------------
-st.header("🍃 Step 3: Plant Health Check")
-st.write("Upload a leaf photo to check for plant diseases and get treatment suggestions.")
+st.header(t('step3_header'))
+st.write(t('step3_info'))
 uploaded_file = st.file_uploader("Upload a leaf image", type=["jpg", "png", "jpeg"])
 if uploaded_file:
     process_and_display_prediction(uploaded_file, plant_model)
@@ -249,8 +267,8 @@ st.divider()
 # --------------------------------------------------------------------
 # 🌈 Step 4: Hyperspectral Analysis
 # --------------------------------------------------------------------
-st.header("🌈 Step 4: Hyperspectral Data Analysis")
-st.write("Paste hyperspectral reflectance data to classify crops or land cover using a trained ONNX model.")
+st.header(t('step4_header'))
+st.write(t('step4_info'))
 
 if hyperspectral_model:
     st.write("Upload a file or paste the data below:")
@@ -276,8 +294,8 @@ st.divider()
 # --------------------------------------------------------------------
 # ☀️ Step 5: Weather Insights
 # --------------------------------------------------------------------
-st.header("☀️ Step 5: Weather Insights")
-st.write("Get the latest 30-day weather data from NASA POWER for your farm's location.")
+st.header(t('step5_header'))
+st.write(t('step5_info'))
 if st.button("Fetch Weather Data"):
     if not st.session_state['lat'] or not st.session_state['lon']:
         st.warning("Please set your farm location in Step 1 first.")
@@ -308,3 +326,138 @@ if st.session_state.get('report_content'):
     )
 else:
     st.info("Please generate a report in Step 2 to enable download.")
+
+st.divider()
+
+# --------------------------------------------------------------------
+#  Step 6: Live Disease Detection
+# --------------------------------------------------------------------
+st.header(t('step6_header'))
+st.write(t('step6_info'))
+
+class VideoTransformer(VideoTransformerBase):
+    def __init__(self, plant_model, class_labels):
+        self.plant_model = plant_model
+        self.class_labels = class_labels
+
+    def transform(self, frame):
+        img = Image.fromarray(frame.to_ndarray(format="bgr24"))
+        img_resized = img.resize((224, 224))
+        img_array = tf.keras.preprocessing.image.img_to_array(img_resized)
+        img_array = np.expand_dims(img_array, axis=0) / 255.0
+
+        if self.plant_model is not None:
+            prediction = self.plant_model.predict(img_array)
+            predicted_class_index = np.argmax(prediction, axis=1)[0]
+            predicted_class_label = self.class_labels[predicted_class_index]
+            confidence = np.max(prediction) * 100
+
+            # Draw the prediction on the frame
+            import cv2
+            text = f"{predicted_class_label} ({confidence:.2f}%)"
+            cv2.putText(frame.to_ndarray(format="bgr24"), text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+        return frame
+
+plant_disease_class_labels = [
+    'Apple___Apple_scab', 'Apple___Black_rot', 'Apple___Cedar_apple_rust', 'Apple___healthy',
+    'Blueberry___healthy', 'Cherry_(including_sour)___Powdery_mildew', 'Cherry_(including_sour)___healthy',
+    'Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot', 'Corn_(maize)___Common_rust_', 'Corn_(maize)___Northern_Leaf_Blight', 'Corn_(maize)___healthy',
+    'Grape___Black_rot', 'Grape___Esca_(Black_Measles)', 'Grape___Leaf_blight_(Isariopsis_Leaf_Spot)', 'Grape___healthy',
+    'Orange___Haunglongbing_(Citrus_greening)', 'Peach___Bacterial_spot', 'Peach___healthy',
+    'Pepper,_bell___Bacterial_spot', 'Pepper,_bell___healthy', 'Potato___Early_blight', 'Potato___Late_blight', 'Potato___healthy',
+    'Raspberry___healthy', 'Soybean___healthy', 'Squash___Powdery_mildew',
+    'Strawberry___Leaf_scorch', 'Strawberry___healthy', 'Tomato___Bacterial_spot', 'Tomato___Early_blight',
+    'Tomato___Late_blight', 'Tomato___Leaf_Mold', 'Tomato___Septoria_leaf_spot',
+    'Tomato___Spider_mites Two-spotted_spider_mite', 'Tomato___Target_Spot', 'Tomato___Tomato_Yellow_Leaf_Curl_Virus',
+    'Tomato___Tomato_mosaic_virus', 'Tomato___healthy'
+]
+
+webrtc_streamer(
+    key="example",
+    mode=WebRtcMode.SENDRECV,
+    video_transformer_factory=lambda: VideoTransformer(plant_model, plant_disease_class_labels),
+    media_stream_constraints={"video": True, "audio": False},
+)
+
+st.divider()
+
+# --------------------------------------------------------------------
+# 📈 Step 7: Historical Weather Analysis
+# --------------------------------------------------------------------
+st.header(t('step7_header'))
+st.write(t('step7_info'))
+
+if st.button("Analyze Historical Weather"):
+    if not st.session_state['lat'] or not st.session_state['lon']:
+        st.warning("Please set your farm location in Step 1 first.")
+    else:
+        with st.spinner("Fetching 5 years of historical weather data... This may take some time."):
+            historical_df = fetch_nasa_power_data(st.session_state['lat'], st.session_state['lon'])
+            if historical_df.empty:
+                st.error("Failed to fetch historical weather data.")
+            else:
+                st.success("Historical data fetched successfully!")
+
+                st.subheader("Yearly Average Weather Conditions")
+                yearly_summary = get_yearly_summary(historical_df)
+                st.dataframe(yearly_summary)
+
+                st.subheader("Historical Weather Trends")
+                st.line_chart(historical_df[['T2M', 'PRECTOTCORR', 'RH2M', 'WS2M']])
+
+st.divider()
+
+# --------------------------------------------------------------------
+# 💰 Step 8: Market Prices
+# --------------------------------------------------------------------
+st.header("💰 Step 8: Market Prices")
+st.write("Get the latest market prices for your crops from various markets in India.")
+
+commodity = st.text_input("Enter a crop name (e.g., 'Wheat', 'Paddy')")
+if st.button("Fetch Market Prices"):
+    if commodity:
+        with st.spinner(f"Fetching market prices for {commodity}..."):
+            prices = fetch_market_prices(commodity)
+            if isinstance(prices, list):
+                st.success(f"Market prices for {commodity}:")
+                st.dataframe(prices)
+            else:
+                st.error(prices)
+    else:
+        st.warning("Please enter a crop name.")
+
+st.divider()
+
+# --------------------------------------------------------------------
+# 🎤 Step 9: Voice Commands
+# --------------------------------------------------------------------
+st.header("🎤 Step 9: Voice Commands")
+st.write("Use your voice to set your farm's location.")
+
+audio_bytes = audiorecorder("Click to record", "Click to stop recording")
+if audio_bytes:
+    st.audio(audio_bytes, format="audio/wav")
+
+    # Transcribe the audio
+    aai.settings.api_key = st.secrets.get("ASSEMBLYAI_API_KEY")
+    if aai.settings.api_key:
+        transcriber = aai.Transcriber()
+        transcript = transcriber.transcribe(audio_bytes)
+
+        if transcript.status == aai.TranscriptStatus.error:
+            st.error(transcript.error)
+        else:
+            st.success(f"Transcription: {transcript.text}")
+            location_name = transcript.text
+            with st.spinner(f"Finding coordinates for {location_name}..."):
+                lat, lon = get_coords_from_place_name(location_name)
+                if lat and lon:
+                    st.session_state['lat'], st.session_state['lon'] = lat, lon
+                    st.session_state['location_name'] = location_name
+                    st.success(f"📍 Location Set: {location_name} (Lat: {lat:.4f}, Lon: {lon:.4f})")
+                    st.experimental_rerun()
+                else:
+                    st.error(f"Could not find coordinates for '{location_name}'. Please be more specific.")
+    else:
+        st.error("AssemblyAI API key not found.")
