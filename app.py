@@ -16,6 +16,9 @@ from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut, GeocoderUnavailable
 import onnxruntime as ort
 from nasa_power import fetch_nasa_power_data # Ensure nasa_power.py is in the same directory
+from utils.ui_helpers import process_and_display_prediction
+from utils.inference import run_hyperspectral_analysis_onnx
+from utils.pdf_report import generate_pdf_report
 
 # ====================================================================
 # Page Configuration & API Setup
@@ -28,20 +31,14 @@ st.set_page_config(
 )
 
 # ####################################################################
-# # --- WARNING: Hardcoding API keys is insecure and NOT recommended ---
-# # This is for demonstration ONLY. Use st.secrets for deployment.
+# # --- Secure API Key Handling with Streamlit Secrets ---
 # ####################################################################
-GEMINI_API_KEY = "AIzaSyCzghG5GiSTX6MnzaxeGXlEuh6aFCec37A" # <-- YOUR KEY IS PLACED HERE
-
-# --- Configure Gemini API ---
-if GEMINI_API_KEY:
-    try:
-        genai.configure(api_key=GEMINI_API_KEY)
-    except Exception as e:
-        st.error(f"Failed to configure Gemini API: {e}")
-        GEMINI_API_KEY = None
-else:
-    st.warning("⚠️ Gemini API key is not set. AI features will be disabled.")
+try:
+    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+    genai.configure(api_key=GEMINI_API_KEY)
+except (KeyError, Exception) as e:
+    st.warning("⚠️ Gemini API key not found or invalid. AI features will be disabled.")
+    GEMINI_API_KEY = None
 # ####################################################################
 
 # ====================================================================
@@ -156,35 +153,6 @@ def generate_combined_report(lat, lon, soil_type, irrigation, farm_size, weather
     except Exception as e:
         return f"An error occurred while generating the report: {e}"
 
-def process_and_display_prediction(image_file):
-    """Takes an image file, runs prediction, and displays results."""
-    if plant_model is None:
-        st.error("The plant disease prediction model is currently unavailable.")
-        return
-    st.image(image_file, caption="Uploaded Leaf Image", use_column_width=True)
-    with st.spinner("🔬 Analyzing image..."):
-        image = Image.open(image_file).convert("RGB")
-        img_resized = image.resize((224, 224))
-        img_array = tf.keras.preprocessing.image.img_to_array(img_resized)
-        img_array = np.expand_dims(img_array, axis=0) / 255.0
-        prediction = plant_model.predict(img_array)
-        predicted_class_index = np.argmax(prediction, axis=1)[0]
-        confidence = np.max(prediction) * 100
-        class_labels = [
-            'Apple___Apple_scab', 'Apple___Black_rot', # ... (rest of your class labels)
-        ]
-        predicted_class_label = class_labels[predicted_class_index]
-        st.success("Analysis Complete!")
-        if "healthy" in predicted_class_label: st.metric("Prediction Result", "✅ Healthy")
-        else: st.metric("Prediction Result", "❌ Disease Detected")
-        st.subheader("Detected Condition")
-        st.write(f"**{predicted_class_label.replace('___', ' - ').replace('_', ' ')}**")
-        st.progress(int(confidence))
-        st.caption(f"Confidence: {confidence:.2f}%")
-        with st.expander("🔬 View Management & Prevention Tips"):
-            st.info("Prune affected areas, ensure proper air circulation, and use recommended organic fungicides. Avoid overhead watering.")
-            st.warning("Plant disease-resistant varieties, practice crop rotation, and maintain good field sanitation.")
-
 # ====================================================================
 #                    STREAMLIT UI LAYOUT
 # ====================================================================
@@ -198,6 +166,7 @@ if 'lat' not in st.session_state: st.session_state['lat'] = None
 if 'lon' not in st.session_state: st.session_state['lon'] = None
 if 'suggested_soil' not in st.session_state: st.session_state['suggested_soil'] = 0
 if 'suggested_irrigation' not in st.session_state: st.session_state['suggested_irrigation'] = 0
+if 'report_content' not in st.session_state: st.session_state['report_content'] = ""
 
 # --------------------------------------------------------------------
 # 📍 Step 1: Farm Location & Setup
@@ -262,12 +231,11 @@ if st.button("📝 Generate Combined Agri-Report"):
             else:
                 st.success("Weather data fetched successfully!")
                 report = generate_combined_report(st.session_state['lat'], st.session_state['lon'], soil_type, irrigation, farm_size, weather_df, location_name)
+                st.session_state['report_content'] = report
                 st.subheader("Your Combined Agricultural Report")
                 st.markdown(report)
 st.divider()
 
-# (The rest of the code for Steps 3, 4, 5, and the Report Section remains the same as your previous version)
-# ... (omitted for brevity, please paste the rest of your code here)
 # --------------------------------------------------------------------
 # 🍃 Step 3: Plant Health Check
 # --------------------------------------------------------------------
@@ -275,7 +243,7 @@ st.header("🍃 Step 3: Plant Health Check")
 st.write("Upload a leaf photo to check for plant diseases and get treatment suggestions.")
 uploaded_file = st.file_uploader("Upload a leaf image", type=["jpg", "png", "jpeg"])
 if uploaded_file:
-    process_and_display_prediction(uploaded_file)
+    process_and_display_prediction(uploaded_file, plant_model)
 st.divider()
 
 # --------------------------------------------------------------------
@@ -285,42 +253,22 @@ st.header("🌈 Step 4: Hyperspectral Data Analysis")
 st.write("Paste hyperspectral reflectance data to classify crops or land cover using a trained ONNX model.")
 
 if hyperspectral_model:
+    st.write("Upload a file or paste the data below:")
+    uploaded_spectral_file = st.file_uploader("Upload Hyperspectral Data File", type=["csv", "txt"])
+
     default_data = ','.join([f"{np.random.rand()*0.1 + 0.2:.4f}" for _ in range(200)])
     spectral_data_input = st.text_area("Paste Hyperspectral Data (comma separated values)", default_data, height=150)
 
     if st.button("Run Hyperspectral Analysis"):
-        try:
-            spectral_values = [float(val.strip()) for val in spectral_data_input.split(',')]
-            num_bands = len(spectral_values)
-            data_reshaped = np.array(spectral_values).reshape(1, 1, 1, num_bands, 1)
-            data_final = data_reshaped.astype(np.float32)
-
-            with st.spinner("Analyzing with ONNX model..."):
-                input_name = hyperspectral_model.get_inputs()[0].name
-                output_name = hyperspectral_model.get_outputs()[0].name
-                result = hyperspectral_model.run([output_name], {input_name: data_final})
-                
-                prediction_array = result[0]
-                predicted_class_index = np.argmax(prediction_array, axis=1)[0]
-                
-                softmax_scores = tf.nn.softmax(prediction_array[0]).numpy()
-                confidence = np.max(softmax_scores) * 100
-            
-            class_labels = [
-                'Alfalfa', 'Corn-notill', 'Corn-min', 'Corn', 'Grass-pasture',
-                'Grass-trees', 'Grass-pasture-mowed', 'Hay-windrowed', 'Oats',
-                'Soybean-notill', 'Soybean-min', 'Soybean-clean', 'Wheat', 'Woods',
-                'Buildings-Grass-Trees-Drives', 'Stone-Steel-Towers'
-            ]
-
-            if predicted_class_index < len(class_labels):
-                predicted_label = class_labels[predicted_class_index]
+        if uploaded_spectral_file is not None:
+            spectral_data_input = uploaded_spectral_file.getvalue().decode("utf-8")
+        with st.spinner("Analyzing with ONNX model..."):
+            predicted_label, confidence = run_hyperspectral_analysis_onnx(hyperspectral_model, spectral_data_input)
+            if confidence is not None:
                 st.success(f"**Predicted Land Cover:** {predicted_label}")
                 st.metric("Prediction Confidence", f"{confidence:.2f}%")
             else:
-                st.error("Prediction index is out of bounds. Check the model's class labels.")
-        except Exception as e:
-            st.error(f"An error occurred during analysis: {e}")
+                st.error(predicted_label) # Display error message
 else:
     st.warning("Hyperspectral model not loaded. Please ensure 'trainedIndianPinesCSCNN.onnx' is in the 'models' directory.")
 st.divider()
@@ -345,9 +293,18 @@ if st.button("Fetch Weather Data"):
 st.divider()
 
 # --------------------------------------------------------------------
-# 📄 Report Section (Placeholder)
+# 📄 Report Section
 # --------------------------------------------------------------------
-st.header("📄 Generate Report")
-st.write("This feature is coming soon! It will allow you to download a summary of your generated plans and analyses.")
-if st.button("Download PDF Report"):
-    st.info("PDF report generation functionality is under development.")
+st.header("📄 Download Your Report")
+st.write("Click the button below to download your generated report as a PDF.")
+
+if st.session_state.get('report_content'):
+    pdf_bytes = generate_pdf_report(st.session_state['report_content'])
+    st.download_button(
+        label="Download PDF Report",
+        data=pdf_bytes,
+        file_name="Smart_Agriculture_Report.pdf",
+        mime="application/pdf"
+    )
+else:
+    st.info("Please generate a report in Step 2 to enable download.")
