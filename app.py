@@ -25,8 +25,6 @@ import folium
 from nasa_power import get_yearly_summary, get_monthly_summary
 from utils.translator import t
 from utils.market_data import fetch_market_prices
-from streamlit_audiorecorder import audiorecorder
-import assemblyai as aai
 from utils.fertilizer import get_fertilizer_recommendation
 
 # ====================================================================
@@ -467,41 +465,6 @@ if st.button("Fetch Market Prices"):
                 st.error(prices)
     else:
         st.warning("Please enter a crop name.")
-
-st.divider()
-
-# --------------------------------------------------------------------
-# 🎤 Step 9: Voice Commands
-# --------------------------------------------------------------------
-st.header("🎤 Step 9: Voice Commands")
-st.write("Use your voice to set your farm's location.")
-
-audio_bytes = audiorecorder("Click to record", "Click to stop recording")
-if audio_bytes:
-    st.audio(audio_bytes, format="audio/wav")
-
-    # Transcribe the audio
-    aai.settings.api_key = st.secrets.get("ASSEMBLYAI_API_KEY")
-    if aai.settings.api_key:
-        transcriber = aai.Transcriber()
-        transcript = transcriber.transcribe(audio_bytes)
-
-        if transcript.status == aai.TranscriptStatus.error:
-            st.error(transcript.error)
-        else:
-            st.success(f"Transcription: {transcript.text}")
-            location_name = transcript.text
-            with st.spinner(f"Finding coordinates for {location_name}..."):
-                lat, lon = get_coords_from_place_name(location_name)
-                if lat and lon:
-                    st.session_state['lat'], st.session_state['lon'] = lat, lon
-                    st.session_state['location_name'] = location_name
-                    st.success(f"📍 Location Set: {location_name} (Lat: {lat:.4f}, Lon: {lon:.4f})")
-                    st.experimental_rerun()
-                else:
-                    st.error(f"Could not find coordinates for '{location_name}'. Please be more specific.")
-    else:
-        st.error("AssemblyAI API key not found.")
 
 st.divider()
 
