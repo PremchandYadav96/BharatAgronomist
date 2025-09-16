@@ -172,12 +172,14 @@ def get_hyperspectral_explanation(land_cover_label):
     """Generates a farmer-friendly explanation for a hyperspectral prediction using Gemini AI."""
     if not GEMINI_API_KEY: return "Gemini AI is not available to provide an explanation."
     model = genai.GenerativeModel('gemini-1.5-flash-latest')
-    prompt = f\"\"\"
+    
+    # --- FIX IS HERE: Removed the backslash before the triple quotes ---
+    prompt = f"""
     As an agricultural expert, provide a simple, one-paragraph explanation for a farmer about the hyperspectral analysis result.
     The analysis identified the land cover as: **{land_cover_label}**.
     Explain what this means in simple terms. For example, if it's a type of crop, what stage it might be in. If it's 'Woods' or 'Buildings', explain that.
     Keep the tone helpful and easy to understand for a non-expert.
-    \"\"\"
+    """
     try:
         response = model.generate_content(prompt)
         return response.text
