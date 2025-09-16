@@ -168,6 +168,22 @@ def generate_combined_report(lat, lon, soil_type, irrigation, farm_size, weather
     except Exception as e:
         return f"An error occurred while generating the report: {e}"
 
+def get_hyperspectral_explanation(land_cover_label):
+    """Generates a farmer-friendly explanation for a hyperspectral prediction using Gemini AI."""
+    if not GEMINI_API_KEY: return "Gemini AI is not available to provide an explanation."
+    model = genai.GenerativeModel('gemini-1.5-flash-latest')
+    prompt = f\"\"\"
+    As an agricultural expert, provide a simple, one-paragraph explanation for a farmer about the hyperspectral analysis result.
+    The analysis identified the land cover as: **{land_cover_label}**.
+    Explain what this means in simple terms. For example, if it's a type of crop, what stage it might be in. If it's 'Woods' or 'Buildings', explain that.
+    Keep the tone helpful and easy to understand for a non-expert.
+    \"\"\"
+    try:
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"An error occurred while generating the explanation: {e}"
+
 # ====================================================================
 #                    STREAMLIT UI LAYOUT
 # ====================================================================
@@ -288,6 +304,9 @@ if hyperspectral_model:
             if confidence is not None:
                 st.success(f"**Predicted Land Cover:** {predicted_label}")
                 st.metric("Prediction Confidence", f"{confidence:.2f}%")
+                with st.spinner("🤖 Asking AI for a detailed explanation..."):
+                    explanation = get_hyperspectral_explanation(predicted_label)
+                    st.info(f"**AI Agronomist's Note:**\n{explanation}")
             else:
                 st.error(predicted_label) # Display error message
 else:
