@@ -13,3 +13,4 @@ streamlit-folium==0.14.0
 assemblyai==0.21.0
 opencv-python-headless==4.9.0.80
 streamlit-audiorecorder==0.0.1
+seaborn==0.13.0

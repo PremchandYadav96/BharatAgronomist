@@ -70,3 +70,15 @@ def get_yearly_summary(df: pd.DataFrame) -> pd.DataFrame:
     yearly_summary = df.resample('Y').mean()
     yearly_summary.index = yearly_summary.index.year
     return yearly_summary
+
+def get_monthly_summary(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Calculates the monthly average for each weather parameter.
+    """
+    if df.empty:
+        return pd.DataFrame()
+
+    # Resample the data by month and calculate the mean
+    monthly_summary = df.resample('M').mean()
+    monthly_summary.index = monthly_summary.index.strftime('%Y-%m')
+    return monthly_summary
