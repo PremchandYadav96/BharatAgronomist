@@ -5,7 +5,7 @@
 # - **INSECURE API KEY HANDLING (FOR DEMO ONLY)**
 # - Generates a combined Climate Analysis and Crop Advisory report.
 # ====================================================================
-
+from tensorflow.keras.models import load_model
 import os
 import streamlit as st
 import numpy as np
