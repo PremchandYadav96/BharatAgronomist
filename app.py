@@ -41,7 +41,7 @@ st.sidebar.title("Language Selection")
 lang = st.sidebar.selectbox("Select Language", ["en", "hi", "mr"], format_func=lambda x: {"en": "English", "hi": "हिंदी", "mr": "मराठी"}[x])
 if 'lang' not in st.session_state or st.session_state['lang'] != lang:
     st.session_state['lang'] = lang
-    st.experimental_rerun()
+    st.rerun()
 
 # ####################################################################
 # # --- Secure API Key Handling with Streamlit Secrets ---
