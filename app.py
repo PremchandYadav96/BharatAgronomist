@@ -22,11 +22,12 @@ from utils.pdf_report import generate_pdf_report
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode
 from streamlit_folium import st_folium
 import folium
-from nasa_power import get_yearly_summary
+from nasa_power import get_yearly_summary, get_monthly_summary
 from utils.translator import t
 from utils.market_data import fetch_market_prices
 from streamlit_audiorecorder import audiorecorder
 import assemblyai as aai
+from utils.fertilizer import get_fertilizer_recommendation
 
 # ====================================================================
 # Page Configuration & API Setup
@@ -226,7 +227,9 @@ if st.session_state['lat'] and GEMINI_API_KEY:
 
 col3, col4 = st.columns(2)
 with col3:
-    soil_type = st.selectbox("Soil Type", ["Alluvial Soil", "Black (Regur) Soil", "Red and Yellow Soil", "Laterite Soil", "Arid (Desert) Soil", "Saline Soil", "Peaty (Marshy) Soil", "Forest and Mountain Soil"], index=st.session_state['suggested_soil'])
+    soil_type_options = ["Alluvial Soil", "Black (Regur) Soil", "Red and Yellow Soil", "Laterite Soil", "Arid (Desert) Soil", "Saline Soil", "Peaty (Marshy) Soil", "Forest and Mountain Soil"]
+    soil_type = st.selectbox("Soil Type", soil_type_options, index=st.session_state['suggested_soil'])
+    st.session_state['soil_type'] = soil_type
 with col4:
     irrigation = st.selectbox("Irrigation Availability", ["Rain-fed (No irrigation)", "Limited (Canal/Well, not regular)", "Good (Drip/Sprinkler/Canal)"], index=st.session_state['suggested_irrigation'])
 st.divider()
@@ -403,8 +406,25 @@ if st.button("Analyze Historical Weather"):
                 yearly_summary = get_yearly_summary(historical_df)
                 st.dataframe(yearly_summary)
 
+                st.subheader("Monthly Average Weather Conditions")
+                monthly_summary = get_monthly_summary(historical_df)
+                st.dataframe(monthly_summary)
+
                 st.subheader("Historical Weather Trends")
                 st.line_chart(historical_df[['T2M', 'PRECTOTCORR', 'RH2M', 'WS2M']])
+
+                # Fungal disease alert
+                last_7_days = historical_df.tail(7)
+                if last_7_days['T2M'].mean() > 25 and last_7_days['RH2M'].mean() > 80:
+                    st.warning("⚠️ High risk of fungal disease! Average temperature and humidity have been high for the last 7 days.")
+
+                # Correlation heatmap
+                st.subheader("Weather Parameter Correlation")
+                import seaborn as sns
+                import matplotlib.pyplot as plt
+                fig, ax = plt.subplots()
+                sns.heatmap(historical_df[['T2M', 'PRECTOTCORR', 'RH2M', 'WS2M']].corr(), ax=ax, annot=True, cmap='coolwarm')
+                st.pyplot(fig)
 
 st.divider()
 
@@ -461,3 +481,22 @@ if audio_bytes:
                     st.error(f"Could not find coordinates for '{location_name}'. Please be more specific.")
     else:
         st.error("AssemblyAI API key not found.")
+
+st.divider()
+
+# --------------------------------------------------------------------
+# 🌿 Step 10: Fertilizer Recommendation
+# --------------------------------------------------------------------
+st.header("🌿 Step 10: Fertilizer Recommendation")
+st.write("Get fertilizer recommendations based on your soil type and crop.")
+
+crop_list = ["Wheat", "Paddy", "Sugarcane", "Cotton", "Soybean", "Groundnut", "Maize", "Cashew", "Rubber", "Tea", "Millet", "Guar", "Barley", "Apple"]
+selected_crop = st.selectbox("Select your crop", crop_list)
+
+if st.button("Get Fertilizer Recommendation"):
+    if 'soil_type' in st.session_state:
+        soil_type = st.session_state['soil_type']
+        recommendation = get_fertilizer_recommendation(soil_type, selected_crop)
+        st.info(recommendation)
+    else:
+        st.warning("Please select your soil type in Step 1 first.")
