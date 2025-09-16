@@ -1,6 +1,6 @@
 streamlit==1.37.1           # latest stable
-tensorflow==2.16.1          # Downgraded for stability
-keras==2.16.0               # Pinned for compatibility with TF 2.16.1
+tensorflow==2.15.0          # Downgraded for stability
+keras==2.15.0               # Pinned for compatibility with TF 2.15.0
 Pillow==10.4.0              # latest, bugfixes
 google-generativeai==0.8.3  # latest Gemini SDK
 geopy==2.4.1
