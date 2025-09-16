@@ -1,2 +1,2 @@
 [server]
-folderWatchBlacklist = ['models']
+fileWatcherType = "none"
