@@ -17,8 +17,6 @@ from geopy.exc import GeocoderTimedOut, GeocoderUnavailable
 import onnxruntime as ort
 from nasa_power import fetch_nasa_power_data # Ensure nasa_power.py is in the same directory
 from utils.ui_helpers import process_and_display_prediction
-from utils.inference import run_hyperspectral_analysis_onnx
-from utils.pdf_report import generate_pdf_report
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode
 from streamlit_folium import st_folium
 import folium
@@ -71,20 +69,7 @@ def load_plant_model():
         print(f"⚠️ Error loading plant disease model: {e}")
         return None
 
-@st.cache_resource
-def load_hyperspectral_model():
-    model_path = os.path.join(MODEL_DIR, "trainedIndianPinesCSCNN.onnx")
-    if not os.path.exists(model_path): return None
-    try:
-        session = ort.InferenceSession(model_path)
-        print("✅ Hyperspectral ONNX model loaded")
-        return session
-    except Exception as e:
-        print(f"⚠️ Error loading hyperspectral ONNX model: {e}")
-        return None
-
 plant_model = load_plant_model()
-hyperspectral_model = load_hyperspectral_model()
 
 # ====================================================================
 # Helper Functions
@@ -165,24 +150,6 @@ def generate_combined_report(lat, lon, soil_type, irrigation, farm_size, weather
         return response.text
     except Exception as e:
         return f"An error occurred while generating the report: {e}"
-
-def get_hyperspectral_explanation(land_cover_label):
-    """Generates a farmer-friendly explanation for a hyperspectral prediction using Gemini AI."""
-    if not GEMINI_API_KEY: return "Gemini AI is not available to provide an explanation."
-    model = genai.GenerativeModel('gemini-1.5-flash-latest')
-    
-    # --- FIX IS HERE: Removed the backslash before the triple quotes ---
-    prompt = f"""
-    As an agricultural expert, provide a simple, one-paragraph explanation for a farmer about the hyperspectral analysis result.
-    The analysis identified the land cover as: **{land_cover_label}**.
-    Explain what this means in simple terms. For example, if it's a type of crop, what stage it might be in. If it's 'Woods' or 'Buildings', explain that.
-    Keep the tone helpful and easy to understand for a non-expert.
-    """
-    try:
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        return f"An error occurred while generating the explanation: {e}"
 
 # ====================================================================
 #                    STREAMLIT UI LAYOUT
@@ -273,45 +240,7 @@ if st.button("📝 Generate Combined Agri-Report"):
                 st.markdown(report)
 st.divider()
 
-# --------------------------------------------------------------------
-# 🍃 Step 3: Plant Health Check
-# --------------------------------------------------------------------
-st.header(t('step3_header'))
-st.write(t('step3_info'))
-uploaded_file = st.file_uploader("Upload a leaf image", type=["jpg", "png", "jpeg"])
-if uploaded_file:
-    process_and_display_prediction(uploaded_file, plant_model)
-st.divider()
 
-# --------------------------------------------------------------------
-# 🌈 Step 4: Hyperspectral Analysis
-# --------------------------------------------------------------------
-st.header(t('step4_header'))
-st.write(t('step4_info'))
-
-if hyperspectral_model:
-    st.write("Upload a file or paste the data below:")
-    uploaded_spectral_file = st.file_uploader("Upload Hyperspectral Data File", type=["csv", "txt"])
-
-    default_data = ','.join([f"{np.random.rand()*0.1 + 0.2:.4f}" for _ in range(200)])
-    spectral_data_input = st.text_area("Paste Hyperspectral Data (comma separated values)", default_data, height=150)
-
-    if st.button("Run Hyperspectral Analysis"):
-        if uploaded_spectral_file is not None:
-            spectral_data_input = uploaded_spectral_file.getvalue().decode("utf-8")
-        with st.spinner("Analyzing with ONNX model..."):
-            predicted_label, confidence = run_hyperspectral_analysis_onnx(hyperspectral_model, spectral_data_input)
-            if confidence is not None:
-                st.success(f"**Predicted Land Cover:** {predicted_label}")
-                st.metric("Prediction Confidence", f"{confidence:.2f}%")
-                with st.spinner("🤖 Asking AI for a detailed explanation..."):
-                    explanation = get_hyperspectral_explanation(predicted_label)
-                    st.info(f"**AI Agronomist's Note:**\n{explanation}")
-            else:
-                st.error(predicted_label) # Display error message
-else:
-    st.warning("Hyperspectral model not loaded. Please ensure 'trainedIndianPinesCSCNN.onnx' is in the 'models' directory.")
-st.divider()
 
 # --------------------------------------------------------------------
 # ☀️ Step 5: Weather Insights
@@ -332,30 +261,12 @@ if st.button("Fetch Weather Data"):
                 st.dataframe(df)
 st.divider()
 
-# --------------------------------------------------------------------
-# 📄 Report Section
-# --------------------------------------------------------------------
-st.header("📄 Download Your Report")
-st.write("Click the button below to download your generated report as a PDF.")
-
-if st.session_state.get('report_content'):
-    pdf_bytes = generate_pdf_report(st.session_state['report_content'])
-    st.download_button(
-        label="Download PDF Report",
-        data=pdf_bytes,
-        file_name="Smart_Agriculture_Report.pdf",
-        mime="application/pdf"
-    )
-else:
-    st.info("Please generate a report in Step 2 to enable download.")
-
-st.divider()
 
 # --------------------------------------------------------------------
-#  Step 6: Live Disease Detection
+#  Step 3: Live Disease Detection
 # --------------------------------------------------------------------
-st.header(t('step6_header'))
-st.write(t('step6_info'))
+st.header(t('step3_header'))
+st.write(t('step3_info'))
 
 class VideoTransformer(VideoTransformerBase):
     def __init__(self, plant_model, class_labels):
