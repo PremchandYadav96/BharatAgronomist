@@ -11,9 +11,7 @@ matplotlib==3.9.2
 fpdf2==2.8.1
 streamlit-webrtc==0.47.7    # fixes report_thread error
 streamlit-folium==0.23.0    # latest
-assemblyai==0.36.0          # latest SDK
 opencv-python-headless==4.10.0.84
-streamlit-audiorecorder==0.0.4
 seaborn==0.13.2
 
 
