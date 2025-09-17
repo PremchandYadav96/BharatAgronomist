@@ -206,10 +206,14 @@ if 'suggested_irrigation' not in st.session_state: st.session_state['suggested_i
 if 'report_content' not in st.session_state: st.session_state['report_content'] = ""
 
 # --------------------------------------------------------------------
-# 📍 Step 1: Farm Location & Setup
+# 📍 Step 1: Enter Your Farm Details
 # --------------------------------------------------------------------
-st.header(t('step1_header'))
-st.info(t('step1_info'))
+st.markdown("""
+    <div style="background-color: #2E8B57; padding: 10px; border-radius: 5px;">
+        <h2 style="color: white; text-align: center;">📍 Step 1: Enter Your Farm Details</h2>
+    </div>
+    """, unsafe_allow_html=True)
+st.info("Your location is used to automatically fetch weather data and provide AI-powered suggestions.")
 
 col1, col2 = st.columns([2, 1])
 with col1:
@@ -221,46 +225,55 @@ with col1:
         lat, lon = map_data["last_clicked"]["lat"], map_data["last_clicked"]["lng"]
         st.session_state['lat'], st.session_state['lon'] = lat, lon
         st.success(f"📍 Location Set: (Lat: {lat:.4f}, Lon: {lon:.4f})")
-        # To get the location name, we would need to do a reverse geocoding lookup.
-        # For now, we will just use the coordinates.
-        st.session_state['location_name'] = f"{lat:.4f}, {lon:.4f}"
+
+        # --- Auto-suggest soil and irrigation ---
+        geolocator = Nominatim(user_agent="smart_agri_dashboard")
+        try:
+            location = geolocator.reverse((lat, lon), exactly_one=True)
+            location_name = location.address if location else f"{lat:.4f}, {lon:.4f}"
+            st.session_state['location_name'] = location_name
+
+            with st.spinner("AI is analyzing your region for soil and irrigation types..."):
+                soil, irrigation = get_soil_and_irrigation_suggestion(location_name)
+                if soil and irrigation:
+                    soil_options = ["Alluvial Soil", "Black (Regur) Soil", "Red and Yellow Soil", "Laterite Soil", "Arid (Desert) Soil", "Saline Soil", "Peaty (Marshy) Soil)", "Forest and Mountain Soil"]
+                    irrigation_options = ["Rain-fed (No irrigation)", "Limited (Canal/Well, not regular)", "Good (Drip/Sprinkler/Canal)"]
+                    try:
+                        st.session_state['suggested_soil'] = soil_options.index(soil)
+                    except ValueError:
+                        st.warning(f"AI suggested an unknown soil type: '{soil}'. Please select manually.")
+                    try:
+                        st.session_state['suggested_irrigation'] = irrigation_options.index(irrigation)
+                    except ValueError:
+                        st.warning(f"AI suggested an unknown irrigation type: '{irrigation}'. Please select manually.")
+                    st.success("✅ AI suggestions for soil and irrigation have been auto-filled!")
+        except (GeocoderTimedOut, GeocoderUnavailable):
+            st.error("Could not connect to geocoding service to get location name.")
+            st.session_state['location_name'] = f"{lat:.4f}, {lon:.4f}"
 
 with col2:
     farm_size = st.number_input("Farm Size (in acres)", min_value=0.5, max_value=500.0, value=2.5, step=0.5)
-    location_name = st.text_input("Location Name (optional, for report)", st.session_state.get('location_name', ''))
-
-# --- AI Suggestion for Soil and Irrigation ---
-if st.session_state['lat'] and GEMINI_API_KEY:
-    if st.button("🤖 Suggest Soil & Irrigation for me"):
-        with st.spinner("AI is analyzing your region..."):
-            soil, irrigation = get_soil_and_irrigation_suggestion(location_name)
-            if soil and irrigation:
-                soil_options = ["Alluvial Soil", "Black (Regur) Soil", "Red and Yellow Soil", "Laterite Soil", "Arid (Desert) Soil", "Saline Soil", "Peaty (Marshy) Soil", "Forest and Mountain Soil"]
-                irrigation_options = ["Rain-fed (No irrigation)", "Limited (Canal/Well, not regular)", "Good (Drip/Sprinkler/Canal)"]
-                try:
-                    st.session_state['suggested_soil'] = soil_options.index(soil)
-                except ValueError:
-                    st.warning(f"AI suggested an unknown soil type: '{soil}'. Please select manually.")
-                try:
-                    st.session_state['suggested_irrigation'] = irrigation_options.index(irrigation)
-                except ValueError:
-                    st.warning(f"AI suggested an unknown irrigation type: '{irrigation}'. Please select manually.")
-                st.success("AI suggestions have been applied below!")
+    location_name_display = st.text_input("Location Name", st.session_state.get('location_name', ''), help="Automatically fetched from map coordinates.")
 
 col3, col4 = st.columns(2)
 with col3:
     soil_type_options = ["Alluvial Soil", "Black (Regur) Soil", "Red and Yellow Soil", "Laterite Soil", "Arid (Desert) Soil", "Saline Soil", "Peaty (Marshy) Soil", "Forest and Mountain Soil"]
-    soil_type = st.selectbox("Soil Type", soil_type_options, index=st.session_state['suggested_soil'])
+    soil_type = st.selectbox("Soil Type", soil_type_options, index=st.session_state.get('suggested_soil', 0))
     st.session_state['soil_type'] = soil_type
 with col4:
-    irrigation = st.selectbox("Irrigation Availability", ["Rain-fed (No irrigation)", "Limited (Canal/Well, not regular)", "Good (Drip/Sprinkler/Canal)"], index=st.session_state['suggested_irrigation'])
+    irrigation_options = ["Rain-fed (No irrigation)", "Limited (Canal/Well, not regular)", "Good (Drip/Sprinkler/Canal)"]
+    irrigation = st.selectbox("Irrigation Availability", irrigation_options, index=st.session_state.get('suggested_irrigation', 0))
 st.divider()
 
 # --------------------------------------------------------------------
 # 🌾 Step 2: AI Crop & Climate Report
 # --------------------------------------------------------------------
-st.header(t('step2_header'))
-st.write(t('step2_info'))
+st.markdown("""
+    <div style="background-color: #2E8B57; padding: 10px; border-radius: 5px;">
+        <h2 style="color: white; text-align: center;">🌾 Step 2: AI Crop & Climate Report</h2>
+    </div>
+    """, unsafe_allow_html=True)
+st.info("Get a unified report with detailed climate analysis and crop suggestions for your farm.")
 if st.button("📝 Generate Combined Agri-Report"):
     if not st.session_state['lat'] or not st.session_state['lon']:
         st.warning("Please set your farm location in Step 1 first.")
@@ -268,55 +281,42 @@ if st.button("📝 Generate Combined Agri-Report"):
         st.error("Cannot generate a report. The Gemini API key is not configured.")
     else:
         with st.spinner("Fetching weather data and consulting our AI agronomist... This may take a moment."):
+            # Use the location_name from the session state which is now reverse-geocoded
+            location_name_for_report = st.session_state.get('location_name', f"{st.session_state['lat']:.4f}, {st.session_state['lon']:.4f}")
             weather_df = fetch_nasa_power_data(st.session_state['lat'], st.session_state['lon'])
             if weather_df is None or weather_df.empty:
                 st.error("Failed to fetch weather data for the report. Please check the location and try again.")
             else:
                 st.success("Weather data fetched successfully!")
-                report = generate_combined_report(st.session_state['lat'], st.session_state['lon'], soil_type, irrigation, farm_size, weather_df, location_name)
+                report = generate_combined_report(st.session_state['lat'], st.session_state['lon'], st.session_state['soil_type'], irrigation, farm_size, weather_df, location_name_for_report)
                 st.session_state['report_content'] = report
                 st.subheader("Your Combined Agricultural Report")
                 st.markdown(report)
 st.divider()
 
-
-
 # --------------------------------------------------------------------
-# 🍃 Step 3: Plant Health Check
+# 🍃 Step 3: Plant Health Check (Image Upload)
 # --------------------------------------------------------------------
-st.header(t('step3_header'))
-st.write(t('step3_info'))
+st.markdown("""
+    <div style="background-color: #2E8B57; padding: 10px; border-radius: 5px;">
+        <h2 style="color: white; text-align: center;">🍃 Step 3: Plant Health Check (Image Upload)</h2>
+    </div>
+    """, unsafe_allow_html=True)
+st.info("Upload an image of a plant leaf to detect diseases.")
 uploaded_file = st.file_uploader("Upload a leaf image", type=["jpg", "png", "jpeg"])
 if uploaded_file:
     process_and_display_prediction(uploaded_file)
 st.divider()
 
-
 # --------------------------------------------------------------------
-# ☀️ Step 5: Weather Insights
+# 📸 Step 4: Live Plant Health Check (Webcam)
 # --------------------------------------------------------------------
-st.header(t('step5_header'))
-st.write(t('step5_info'))
-if st.button("Fetch Weather Data"):
-    if not st.session_state['lat'] or not st.session_state['lon']:
-        st.warning("Please set your farm location in Step 1 first.")
-    else:
-        with st.spinner("Fetching weather data..."):
-            df = fetch_nasa_power_data(st.session_state['lat'], st.session_state['lon'])
-            if df is None or df.empty:
-                st.error("Failed to fetch NASA POWER data.")
-            else:
-                st.success("Data fetched successfully!")
-                st.subheader(f"Latest 30-Day Weather Data for {location_name}")
-                st.dataframe(df)
-st.divider()
-
-
-# --------------------------------------------------------------------
-#  Step 4: Live Disease Detection
-# --------------------------------------------------------------------
-st.header(t('step4_header'))
-st.write(t('step4_info'))
+st.markdown("""
+    <div style="background-color: #2E8B57; padding: 10px; border-radius: 5px;">
+        <h2 style="color: white; text-align: center;">📸 Step 4: Live Plant Health Check (Webcam)</h2>
+    </div>
+    """, unsafe_allow_html=True)
+st.info("Use your camera to detect plant diseases in real-time.")
 
 class VideoTransformer(VideoTransformerBase):
     def __init__(self, plant_model, class_labels):
@@ -332,15 +332,17 @@ class VideoTransformer(VideoTransformerBase):
         if self.plant_model is not None:
             prediction = self.plant_model.predict(img_array)
             predicted_class_index = np.argmax(prediction, axis=1)[0]
-            predicted_class_label = self.class_labels[predicted_class_index]
             confidence = np.max(prediction) * 100
+            predicted_class_label = self.class_labels[predicted_class_index]
 
-            # Draw the prediction on the frame
             import cv2
-            text = f"{predicted_class_label} ({confidence:.2f}%)"
-            cv2.putText(frame.to_ndarray(format="bgr24"), text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-
-        return frame
+            text = f"{predicted_class_label.replace('___', ' ').replace('_', ' ')} ({confidence:.1f}%)"
+            (w, h), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+            frame_bgr = frame.to_ndarray(format="bgr24")
+            cv2.rectangle(frame_bgr, (10, 30 - h - 5), (10 + w, 30 + 5), (0,0,0), -1)
+            cv2.putText(frame_bgr, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+            return frame_bgr
+        return frame.to_ndarray(format="bgr24")
 
 webrtc_streamer(
     key="example",
@@ -348,86 +350,84 @@ webrtc_streamer(
     video_transformer_factory=lambda: VideoTransformer(plant_model, plant_disease_class_labels),
     media_stream_constraints={"video": True, "audio": False},
 )
-
 st.divider()
 
 # --------------------------------------------------------------------
-# 📈 Step 7: Historical Weather Analysis
+# ☀️ Step 5: Weather Insights & Forecast
 # --------------------------------------------------------------------
-st.header(t('step7_header'))
-st.write(t('step7_info'))
-
-if st.button("Analyze Historical Weather"):
+st.markdown("""
+    <div style="background-color: #2E8B57; padding: 10px; border-radius: 5px;">
+        <h2 style="color: white; text-align: center;">☀️ Step 5: Weather Insights & Forecast</h2>
+    </div>
+    """, unsafe_allow_html=True)
+st.info("Get current and historical weather data for your location.")
+if st.button("📊 Fetch Weather Analysis"):
     if not st.session_state['lat'] or not st.session_state['lon']:
         st.warning("Please set your farm location in Step 1 first.")
     else:
-        with st.spinner("Fetching 5 years of historical weather data... This may take some time."):
-            historical_df = fetch_nasa_power_data(st.session_state['lat'], st.session_state['lon'])
-            if historical_df.empty:
-                st.error("Failed to fetch historical weather data.")
+        with st.spinner("Fetching current and historical weather data..."):
+            df = fetch_nasa_power_data(st.session_state['lat'], st.session_state['lon'])
+            if df is None or df.empty:
+                st.error("Failed to fetch NASA POWER data.")
             else:
-                st.success("Historical data fetched successfully!")
+                st.success("Data fetched successfully!")
+                location_name_for_weather = st.session_state.get('location_name', 'your selected location')
+                st.subheader(f"Latest 30-Day Weather Data for {location_name_for_weather}")
+                st.dataframe(df.head())
 
-                st.subheader("Yearly Average Weather Conditions")
-                yearly_summary = get_yearly_summary(historical_df)
-                st.dataframe(yearly_summary)
+                st.subheader("Historical Weather Trends (5-Year Averages)")
+                yearly_summary = get_yearly_summary(df)
+                st.bar_chart(yearly_summary)
 
-                st.subheader("Monthly Average Weather Conditions")
-                monthly_summary = get_monthly_summary(historical_df)
-                st.dataframe(monthly_summary)
-
-                st.subheader("Historical Weather Trends")
-                st.line_chart(historical_df[['T2M', 'PRECTOTCORR', 'RH2M', 'WS2M']])
-
-                # Fungal disease alert
-                last_7_days = historical_df.tail(7)
-                if last_7_days['T2M'].mean() > 25 and last_7_days['RH2M'].mean() > 80:
-                    st.warning("⚠️ High risk of fungal disease! Average temperature and humidity have been high for the last 7 days.")
-
-                # Correlation heatmap
-                st.subheader("Weather Parameter Correlation")
-                import seaborn as sns
-                import matplotlib.pyplot as plt
-                fig, ax = plt.subplots()
-                sns.heatmap(historical_df[['T2M', 'PRECTOTCORR', 'RH2M', 'WS2M']].corr(), ax=ax, annot=True, cmap='coolwarm')
-                st.pyplot(fig)
-
+                st.subheader("Fungal Disease Risk Alert")
+                last_7_days = df.tail(7)
+                if not last_7_days.empty and last_7_days['RH2M'].mean() > 75:
+                    st.warning("⚠️ High risk of fungal disease! Average humidity has been high recently.")
+                else:
+                    st.info("No immediate high-risk weather patterns for fungal diseases detected.")
 st.divider()
 
 # --------------------------------------------------------------------
-# 💰 Step 8: Market Prices
+# 💰 Step 6: Market Prices
 # --------------------------------------------------------------------
-st.header("💰 Step 8: Market Prices")
-st.write("Get the latest market prices for your crops from various markets in India.")
+st.markdown("""
+    <div style="background-color: #2E8B57; padding: 10px; border-radius: 5px;">
+        <h2 style="color: white; text-align: center;">💰 Step 6: Market Prices</h2>
+    </div>
+    """, unsafe_allow_html=True)
+st.info("Get the latest market prices for your crops from various markets in India.")
 
-commodity = st.text_input("Enter a crop name (e.g., 'Wheat', 'Paddy')")
-if st.button("Fetch Market Prices"):
+commodity = st.text_input("Enter a crop name (e.g., 'Wheat', 'Paddy')", key="market_crop")
+if st.button("📈 Fetch Market Prices"):
     if commodity:
         with st.spinner(f"Fetching market prices for {commodity}..."):
             prices = fetch_market_prices(commodity)
-            if isinstance(prices, list):
-                st.success(f"Market prices for {commodity}:")
+            if isinstance(prices, list) and prices:
+                st.success(f"Latest market prices for {commodity}:")
                 st.dataframe(prices)
             else:
-                st.error(prices)
+                st.error(f"Could not fetch market prices for '{commodity}'. Please check the name or try another crop.")
     else:
         st.warning("Please enter a crop name.")
-
 st.divider()
 
 # --------------------------------------------------------------------
-# 🌿 Step 10: Fertilizer Recommendation
+# 🌿 Step 7: Fertilizer Recommendation
 # --------------------------------------------------------------------
-st.header("🌿 Step 10: Fertilizer Recommendation")
-st.write("Get fertilizer recommendations based on your soil type and crop.")
+st.markdown("""
+    <div style="background-color: #2E8B57; padding: 10px; border-radius: 5px;">
+        <h2 style="color: white; text-align: center;">🌿 Step 7: Fertilizer Recommendation</h2>
+    </div>
+    """, unsafe_allow_html=True)
+st.info("Get fertilizer recommendations based on your soil type and crop.")
 
 crop_list = ["Wheat", "Paddy", "Sugarcane", "Cotton", "Soybean", "Groundnut", "Maize", "Cashew", "Rubber", "Tea", "Millet", "Guar", "Barley", "Apple"]
-selected_crop = st.selectbox("Select your crop", crop_list)
+selected_crop_fertilizer = st.selectbox("Select your crop", crop_list, key="fertilizer_crop")
 
-if st.button("Get Fertilizer Recommendation"):
+if st.button("💡 Get Fertilizer Recommendation"):
     if 'soil_type' in st.session_state:
         soil_type = st.session_state['soil_type']
-        recommendation = get_fertilizer_recommendation(soil_type, selected_crop)
-        st.info(recommendation)
+        recommendation = get_fertilizer_recommendation(soil_type, selected_crop_fertilizer)
+        st.info(f"**Recommendation for {selected_crop_fertilizer} in {soil_type}:**\n\n{recommendation}")
     else:
         st.warning("Please select your soil type in Step 1 first.")
