@@ -225,6 +225,8 @@ if 'lon' not in st.session_state: st.session_state['lon'] = None
 if 'suggested_soil' not in st.session_state: st.session_state['suggested_soil'] = 0
 if 'suggested_irrigation' not in st.session_state: st.session_state['suggested_irrigation'] = 0
 if 'report_content' not in st.session_state: st.session_state['report_content'] = ""
+if 'soil_options' not in st.session_state: st.session_state['soil_options'] = ["Alluvial Soil", "Black (Regur) Soil", "Red and Yellow Soil", "Laterite Soil", "Arid (Desert) Soil", "Saline Soil", "Peaty (Marshy) Soil", "Forest and Mountain Soil"]
+if 'irrigation_options' not in st.session_state: st.session_state['irrigation_options'] = ["Rain-fed (No irrigation)", "Limited (Canal/Well, not regular)", "Good (Drip/Sprinkler/Canal)"]
 
 # --------------------------------------------------------------------
 # 📍 Step 1: Enter Your Farm Details
@@ -257,16 +259,21 @@ with col1:
             with st.spinner("AI is analyzing your region for soil and irrigation types..."):
                 soil, irrigation = get_soil_and_irrigation_suggestion(location_name)
                 if soil and irrigation:
-                    soil_options = ["Alluvial Soil", "Black (Regur) Soil", "Red and Yellow Soil", "Laterite Soil", "Arid (Desert) Soil", "Saline Soil", "Peaty (Marshy) Soil)", "Forest and Mountain Soil"]
-                    irrigation_options = ["Rain-fed (No irrigation)", "Limited (Canal/Well, not regular)", "Good (Drip/Sprinkler/Canal)"]
-                    try:
-                        st.session_state['suggested_soil'] = soil_options.index(soil)
-                    except ValueError:
-                        st.warning(f"AI suggested an unknown soil type: '{soil}'. Please select manually.")
-                    try:
-                        st.session_state['suggested_irrigation'] = irrigation_options.index(irrigation)
-                    except ValueError:
-                        st.warning(f"AI suggested an unknown irrigation type: '{irrigation}'. Please select manually.")
+                    soil_options = st.session_state['soil_options'].copy()
+                    irrigation_options = st.session_state['irrigation_options'].copy()
+
+                    # Dynamically add AI-suggested soil type if not in the list
+                    if soil not in soil_options:
+                        soil_options.insert(0, soil)
+                    st.session_state['suggested_soil'] = soil_options.index(soil)
+                    st.session_state['soil_options'] = soil_options
+
+                    # Dynamically add AI-suggested irrigation type if not in the list
+                    if irrigation not in irrigation_options:
+                        irrigation_options.insert(0, irrigation)
+                    st.session_state['suggested_irrigation'] = irrigation_options.index(irrigation)
+                    st.session_state['irrigation_options'] = irrigation_options
+
                     st.success("✅ AI suggestions for soil and irrigation have been auto-filled!")
         except (GeocoderTimedOut, GeocoderUnavailable):
             st.error("Could not connect to geocoding service to get location name.")
@@ -278,12 +285,10 @@ with col2:
 
 col3, col4 = st.columns(2)
 with col3:
-    soil_type_options = ["Alluvial Soil", "Black (Regur) Soil", "Red and Yellow Soil", "Laterite Soil", "Arid (Desert) Soil", "Saline Soil", "Peaty (Marshy) Soil", "Forest and Mountain Soil"]
-    soil_type = st.selectbox("Soil Type", soil_type_options, index=st.session_state.get('suggested_soil', 0))
+    soil_type = st.selectbox("Soil Type", st.session_state['soil_options'], index=st.session_state.get('suggested_soil', 0))
     st.session_state['soil_type'] = soil_type
 with col4:
-    irrigation_options = ["Rain-fed (No irrigation)", "Limited (Canal/Well, not regular)", "Good (Drip/Sprinkler/Canal)"]
-    irrigation = st.selectbox("Irrigation Availability", irrigation_options, index=st.session_state.get('suggested_irrigation', 0))
+    irrigation = st.selectbox("Irrigation Availability", st.session_state['irrigation_options'], index=st.session_state.get('suggested_irrigation', 0))
 st.divider()
 
 # --------------------------------------------------------------------
