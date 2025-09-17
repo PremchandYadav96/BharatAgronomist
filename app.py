@@ -61,18 +61,33 @@ except (KeyError, Exception) as e:
 # ====================================================================
 MODEL_DIR = os.path.join(os.getcwd(), "models")
 
-@st.cache_resource
 def load_plant_model():
+    """
+    Loads the plant disease model from disk and caches it in the session state
+    to avoid reloading on every script rerun.
+    """
+    # If model is already in session state, use it.
+    if 'plant_model' in st.session_state:
+        return st.session_state['plant_model']
+
+    # If model is not in session state, load it from disk.
     model_path = os.path.join(MODEL_DIR, "plant_disease_model.h5")
-    if not os.path.exists(model_path): return None
+    if not os.path.exists(model_path):
+        st.error("Plant disease model not found.")
+        return None
     try:
         model = load_model(model_path)
-        print("✅ Plant disease model loaded")
+        print("✅ Plant disease model loaded from disk.")
+        # Cache the model in the session state.
+        st.session_state['plant_model'] = model
         return model
     except Exception as e:
-        print(f"⚠️ Error loading plant disease model: {e}")
+        st.error(f"Error loading plant disease model: {e}")
+        # Ensure the model is set to None in session state on failure.
+        st.session_state['plant_model'] = None
         return None
 
+# Load the model (or get it from the session state cache).
 plant_model = load_plant_model()
 
 # ====================================================================
