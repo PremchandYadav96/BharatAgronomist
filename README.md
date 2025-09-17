@@ -6,6 +6,8 @@ A Product of **[RICE (Revolution In Cultivating Excellence)](https://rice-24.ver
 [![TensorFlow](https://img.shields.io/badge/TensorFlow-2.x-orange?logo=tensorflow&style=for-the-badge)](https://www.tensorflow.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
+
+
 ![BharatAgronomist Banner](https://ibb.co/vvVX0T4p)
 
 ---
@@ -19,8 +21,7 @@ Indian agriculture, the backbone of our economy, faces unprecedented challenges:
 ---
 
 ## 🎥 Live Demo
-*(A short video demonstrating the key features of the application)*
-**[Watch the Demo on YouTube](https://your-youtube-link-here.com)**
+**[Live Project Demo](https://bharatagronomist.streamlit.app/)**
 
 ---
 
