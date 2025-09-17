@@ -28,20 +28,20 @@ Indian agriculture, the backbone of our economy, faces unprecedented challenges:
 
 ### 🧠 Decision Intelligence
 *   **📍 Geospatial Farm Setup:** Automatically fetch farm coordinates using location names.
-*   **🤖 AI-Powered Soil & Irrigation Analysis:** Get intelligent suggestions for soil type and irrigation methods based on regional data.
+*   **🤖 Automated AI-Powered Soil & Irrigation Analysis:** Get automatic and intelligent suggestions for soil type and irrigation methods based on your selected location.
 *   **📊 Combined Agri-Report:** Generate a comprehensive report with detailed climate analysis and a personalized crop advisory in one click.
-*   **📈 Live Market Insights:** Access real-time commodity prices from local mandis via the Data.gov.in API to sell produce at the right time.
-*   **🧪 Smart Fertilizer Recommendations:** Receive custom NPK and micronutrient advice based on soil, crop, and location.
+*   **📈 Live Market Insights & Visualization:** Access real-time commodity prices from local mandis and visualize price trends with an interactive chart.
+*   **🧪 Smart Fertilizer Recommendations:** Receive custom NPK and micronutrient advice based on an expanded list of crops.
 
 ### 🌿 Crop Health & Monitoring
 *   **🌱 Image-Based Disease Detection:** Upload a leaf image to instantly diagnose diseases with 98% accuracy.
 *   **📷 Live Camera Diagnostics:** Use your device's camera for real-time crop health scanning in the field.
-*   **🌈 Hyperspectral Land Cover Analysis:** Analyze hyperspectral data using a pre-trained ONNX model to classify crop types and assess land health.
 
 ### ☀️ Accessibility & Environment
-*   **🗣️ Multilingual Voice Commands:** Interact with the app in **English, Hindi, and Marathi** using advanced voice recognition.
+*   **🌐 Multi-Language Support:** The app is available in **English, Hindi, Marathi, Telugu, and Punjabi**.
+*   **📄 Multi-Language AI Reports:** The AI-generated reports can be translated into all supported languages.
+*   **🗣️ Multilingual Voice Commands:** Interact with the app using advanced voice recognition in supported languages.
 *   **☀️ Hyperlocal Weather Insights:** Get a 30-day forecast and historical weather data from the NASA POWER API, tailored to your farm's exact coordinates.
-*   **📄 PDF Report Generation:** Download all AI-generated advisories and analyses as a portable PDF report.
 
 ---
 
@@ -70,13 +70,11 @@ BharatAgronomist/
 ├── .streamlit/
 │   └── secrets.toml        # Securely store API keys (NEVER commit this)
 ├── models/
-│   ├── plant_disease_model.h5 # Trained Keras model for disease detection
-│   └── trainedIndianPinesCSCNN.onnx # ONNX model for hyperspectral analysis
+│   └── plant_disease_model.h5 # Trained Keras model for disease detection
 ├── nasa_power.py           # Helper module for NASA POWER API integration
 └── utils/                  # Utility scripts for modular functions
     ├── inference.py        # Functions for model prediction
     ├── market_data.py      # Module to fetch market price data
-    ├── pdf_report.py       # Functions for generating PDF reports
     └── translator.py       # Language translation and localization
 ```
 
@@ -128,12 +126,15 @@ Open your browser and go to `http://localhost:8501`.
 ## 🏆 Meet The Team: RICE
 We are RICE (Revolution In Cultivating Excellence), a team of passionate innovators dedicated to solving real-world agricultural challenges through technology.
 
-| Name                | Role                |
-| ------------------- | ------------------- |
-| [Your Name]         | Team Lead / AI Dev  |
-| [Teammate's Name]   | Full-Stack Dev      |
-| [Teammate's Name]   | UI/UX Designer      |
-| [Teammate's Name]   | Data Scientist      |
+| Name                       | Role                                       | Responsibilities                                                                                             |
+| -------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| **V C Premchand Yadav**    | Team Lead / AI & Product Head              | Guides the project vision, leads AI/ML development, and oversees the hackathon presentation.                 |
+| **V C Premchand Yadav**    | Full-Stack Developer                       | Builds the Streamlit frontend and backend API integrations, ensuring a smooth user experience.               |
+| **Edupulapati Sai praneeth** | Data Scientist / Agri-Analytics Specialist | Handles datasets, preprocessing, and develops crop advisory, soil, and irrigation recommendation models.      |
+| **P R kiran kumar reddy**  | Data Scientist / Agri-Analytics Specialist | Handles datasets, preprocessing, and develops crop advisory, soil, and irrigation recommendation models.      |
+| **liel stephen**           | Cloud & Deployment Engineer                | Manages deployment on Streamlit Cloud / Vercel and optimizes app performance and reliability.                |
+| **C R Mohith Reddy**       | UI/UX Designer & Accessibility Lead        | Designs the farmer-friendly, multilingual UI and works on report layouts and voice command integration.      |
+| **Vendodu Lahari**         | Model Integration & API Engineer           | Integrates TensorFlow/ONNX models into the app and connects external APIs (NASA POWER, Data.gov.in, etc.). |
 
 ---
 
