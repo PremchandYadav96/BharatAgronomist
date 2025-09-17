@@ -130,7 +130,7 @@ We are RICE (Revolution In Cultivating Excellence), a team of passionate innovat
 | Name                       | Role                                       | Responsibilities                                                                                             |
 | -------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
 | **V C Premchand Yadav**    | Team Lead / AI & Product Head              | Guides the project vision, leads AI/ML development, and oversees the hackathon presentation.                 |
-| **Edupulapati Sai Praneeth** | Data Scientist / Agri-Analytics Specialist | Handles datasets, preprocessing, and develops crop advisory, soil, and irrigation recommendation models.      |
+| **E Sai Praneeth** | Data Scientist / Agri-Analytics Specialist | Handles datasets, preprocessing, and develops crop advisory, soil, and irrigation recommendation models.      |
 | **P R Kiran Kumar Reddy**  | Full-Stack Developer                       | Builds the Streamlit frontend and backend API integrations, ensuring a smooth user experience.               |
 | **Liel stephen**           | Cloud & Deployment Engineer                | Manages deployment on Streamlit Cloud / Vercel and optimizes app performance and reliability.                |
 | **C R Mohith Reddy**       | UI/UX Designer & Accessibility Lead        | Designs the farmer-friendly, multilingual UI and works on report layouts and voice command integration.      |
