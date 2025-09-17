@@ -1,14 +1,14 @@
 # 🌾 BharatAgronomist
 A Product of **[RICE (Revolution In Cultivating Excellence)](https://rice-24.vercel.app/)**
 
-[![Python](https://img.shields.io/badge/Python-3.9%2B-blue?logo=python&style=for-the-badge)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&style=for-the-badge)](https://www.python.org/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-Framework-red?logo=streamlit&style=for-the-badge)](https://streamlit.io)
 [![TensorFlow](https://img.shields.io/badge/TensorFlow-2.x-orange?logo=tensorflow&style=for-the-badge)](https://www.tensorflow.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
 
 
-![BharatAgronomist Banner](https://ibb.co/vvVX0T4p)
+![BharatAgronomist Banner](https://i.postimg.cc/wvzf9vzB/Bharat-Agronomist.png)
 
 ---
 
