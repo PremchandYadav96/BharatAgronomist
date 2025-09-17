@@ -9,6 +9,7 @@ from tensorflow.keras.models import load_model
 import os
 import streamlit as st
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 from PIL import Image
 import google.generativeai as genai
@@ -35,7 +36,7 @@ st.set_page_config(
 )
 
 st.sidebar.title("Language Selection")
-lang = st.sidebar.selectbox("Select Language", ["en", "hi", "mr"], format_func=lambda x: {"en": "English", "hi": "हिंदी", "mr": "मराठी"}[x])
+lang = st.sidebar.selectbox("Select Language", ["en", "hi", "mr", "te", "pa"], format_func=lambda x: {"en": "English", "hi": "हिंदी", "mr": "मराठी", "te": "తెలుగు", "pa": "ਪੰਜਾਬੀ"}[x])
 if 'lang' not in st.session_state or st.session_state['lang'] != lang:
     st.session_state['lang'] = lang
     st.rerun()
@@ -110,13 +111,16 @@ def get_soil_and_irrigation_suggestion(location_name):
         st.error("AI could not determine the soil/irrigation type. Please select them manually.")
         return None, None
 
-def generate_combined_report(lat, lon, soil_type, irrigation, farm_size, weather_df, location_name):
-    """Generates a combined climate and crop report using Gemini AI."""
+def generate_combined_report(lat, lon, soil_type, irrigation, farm_size, weather_df, location_name, language='en'):
+    """Generates a combined climate and crop report using Gemini AI and translates if needed."""
     if not GEMINI_API_KEY: return "Cannot generate report: Gemini API key is not configured."
+
     model = genai.GenerativeModel('gemini-1.5-flash-latest')
     weather_summary = weather_df.describe().to_string()
     recent_weather = weather_df.tail(15).to_string()
-    prompt = f"""
+
+    # Step 1: Generate the report in English for consistency
+    english_prompt = f"""
     **Role:** You are an expert agronomist preparing a comprehensive report for a farmer in India.
     **Farmer's Context:**
     - **Location Name:** {location_name}
@@ -128,27 +132,44 @@ def generate_combined_report(lat, lon, soil_type, irrigation, farm_size, weather
     - **Statistical Summary:**\n{weather_summary}
     - **Recent 15-Day Trend:**\n{recent_weather}
     **--- YOUR TASK ---**
-    Create a detailed, two-part report in clear, well-formatted markdown.
+    Create a detailed, two-part report in clear, well-formatted markdown. Respond in English.
 
     **Part 1: Detailed Climate Analysis**
     - Analyze the provided weather data for {location_name}.
     - Discuss key parameters: Temperature (T2M), Precipitation (PRECTOTCORR), Relative Humidity (RH2M), and Wind Speed (WS2M).
-    - Describe the overall climate profile based on this data (e.g., "hot and humid with moderate rainfall").
-    - Explain the implications of this climate for agricultural activities in the coming weeks. Mention any potential risks like heat stress, waterlogging, or high winds.
+    - Describe the overall climate profile based on this data.
+    - Explain the implications of this climate for agricultural activities.
 
     **Part 2: Personalized Crop Advisory**
-    - Based on the climate analysis and the farmer's context, provide a practical crop plan.
-    - **Primary Crop Recommendation:** Suggest a suitable crop, a specific variety, the justification for choosing it, and an estimated yield/income.
-    - **Alternative Crop Suggestion:** Suggest a secondary option and explain its benefits (e.g., risk diversification, lower water requirement).
-    - **Actionable Planting Calendar & Guide:** Provide simple, step-by-step instructions for land preparation, sowing time, seed rate, and water management tailored to the recommended crop.
-    - **Sustainable Farming Practices:** Suggest affordable NPK fertilizer applications (including organic alternatives) and Integrated Pest Management (IPM) techniques.
+    - Based on the climate analysis and farmer's context, provide a practical crop plan.
+    - **Primary Crop Recommendation:** Suggest a suitable crop, a specific variety, and justification.
+    - **Alternative Crop Suggestion:** Suggest a secondary option and its benefits.
+    - **Actionable Planting Calendar & Guide:** Provide simple, step-by-step instructions.
+    - **Sustainable Farming Practices:** Suggest NPK fertilizers and IPM techniques.
     **Disclaimer:** Start the entire response with a short disclaimer advising the farmer to cross-verify all recommendations with local agricultural extension services.
     """
     try:
-        response = model.generate_content(prompt)
-        return response.text
+        english_response = model.generate_content(english_prompt)
+        english_report = english_response.text
     except Exception as e:
         return f"An error occurred while generating the report: {e}"
+
+    # Step 2: Translate the report if a different language is selected
+    if language != 'en':
+        lang_map = {"hi": "Hindi", "mr": "Marathi", "te": "Telugu", "pa": "Punjabi"}
+        target_language = lang_map.get(language, "English")
+
+        translation_prompt = f"Translate the following agricultural report into {target_language}. Preserve the markdown formatting, including headings, bold text, and bullet points.\n\nReport:\n{english_report}"
+
+        try:
+            translation_response = model.generate_content(translation_prompt)
+            return translation_response.text
+        except Exception as e:
+            st.warning(f"Could not translate the report to {target_language}. Displaying the English version instead.")
+            # Fallback to English report if translation fails
+            return english_report
+
+    return english_report
 
 plant_disease_class_labels = [
     'Apple___Apple_scab', 'Apple___Black_rot', 'Apple___Cedar_apple_rust', 'Apple___healthy',
@@ -288,7 +309,7 @@ if st.button("📝 Generate Combined Agri-Report"):
                 st.error("Failed to fetch weather data for the report. Please check the location and try again.")
             else:
                 st.success("Weather data fetched successfully!")
-                report = generate_combined_report(st.session_state['lat'], st.session_state['lon'], st.session_state['soil_type'], irrigation, farm_size, weather_df, location_name_for_report)
+                report = generate_combined_report(st.session_state['lat'], st.session_state['lon'], st.session_state['soil_type'], irrigation, farm_size, weather_df, location_name_for_report, st.session_state.get('lang', 'en'))
                 st.session_state['report_content'] = report
                 st.subheader("Your Combined Agricultural Report")
                 st.markdown(report)
@@ -404,7 +425,17 @@ if st.button("📈 Fetch Market Prices"):
             prices = fetch_market_prices(commodity)
             if isinstance(prices, list) and prices:
                 st.success(f"Latest market prices for {commodity}:")
-                st.dataframe(prices)
+                df_prices = pd.DataFrame(prices)
+
+                # Ensure modal_price is numeric
+                df_prices['modal_price'] = pd.to_numeric(df_prices['modal_price'], errors='coerce')
+                df_prices.dropna(subset=['modal_price'], inplace=True)
+
+                st.dataframe(df_prices)
+
+                st.subheader("Price Comparison Across Markets")
+                chart_data = df_prices.set_index('market')[['modal_price']]
+                st.bar_chart(chart_data)
             else:
                 st.error(f"Could not fetch market prices for '{commodity}'. Please check the name or try another crop.")
     else:
@@ -421,7 +452,12 @@ st.markdown("""
     """, unsafe_allow_html=True)
 st.info("Get fertilizer recommendations based on your soil type and crop.")
 
-crop_list = ["Wheat", "Paddy", "Sugarcane", "Cotton", "Soybean", "Groundnut", "Maize", "Cashew", "Rubber", "Tea", "Millet", "Guar", "Barley", "Apple"]
+crop_list = [
+    "Apple", "Banana", "Barley", "Brinjal", "Cashew", "Coconut", "Coffee", "Cotton",
+    "Gram", "Groundnut", "Guar", "Jowar", "Maize", "Mango", "Millet", "Moong",
+    "Mustard", "Okra", "Onion", "Orange", "Paddy", "Potato", "Ragi", "Rubber",
+    "Soybean", "Sugarcane", "Sunflower", "Tea", "Tomato", "Tur (Arhar)", "Urad", "Wheat"
+]
 selected_crop_fertilizer = st.selectbox("Select your crop", crop_list, key="fertilizer_crop")
 
 if st.button("💡 Get Fertilizer Recommendation"):
