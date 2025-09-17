@@ -13,5 +13,6 @@ streamlit-webrtc==0.47.7    # fixes report_thread error
 streamlit-folium==0.23.0    # latest
 opencv-python-headless==4.10.0.84
 seaborn==0.13.2
+gTTS==2.5.1
 
 
