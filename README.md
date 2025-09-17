@@ -143,7 +143,8 @@ We are RICE (Revolution In Cultivating Excellence), a team of passionate innovat
 *   **Supply Chain Linkage:** Connect farmers directly with buyers through the platform.
 *   **Water Management Module:** Provide advisories on efficient water usage based on soil moisture data.
 *   **Offline Capability:** Develop a lightweight, offline-first version for areas with poor connectivity.
-*   **farming tools** next generation farming tools for more efficient yeild
+*   **farming tools** next generation farming tools for more efficient yeild.
+*   ** livestock farming** providing insights and market analysis for dairy,poultry,sericulture etc.
 
 ---
 Crafted with ❤️ for the farmers of India.
