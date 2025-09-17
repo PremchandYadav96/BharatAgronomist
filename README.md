@@ -6,7 +6,7 @@ A Product of **[RICE (Revolution In Cultivating Excellence)](https://rice-24.ver
 [![TensorFlow](https://img.shields.io/badge/TensorFlow-2.x-orange?logo=tensorflow&style=for-the-badge)](https://www.tensorflow.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-![BharatAgronomist Banner](https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWhtYjZ4dzJiZm9tN3R6cWlhbWNyZXppYzg3cGxobnpta2I1Z3UxNCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/NatbVZ9NsLwU8/giphy.gif)
+![BharatAgronomist Banner](https://ibb.co/vvVX0T4p)
 
 ---
 
@@ -129,10 +129,9 @@ We are RICE (Revolution In Cultivating Excellence), a team of passionate innovat
 | Name                       | Role                                       | Responsibilities                                                                                             |
 | -------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
 | **V C Premchand Yadav**    | Team Lead / AI & Product Head              | Guides the project vision, leads AI/ML development, and oversees the hackathon presentation.                 |
-| **V C Premchand Yadav**    | Full-Stack Developer                       | Builds the Streamlit frontend and backend API integrations, ensuring a smooth user experience.               |
-| **Edupulapati Sai praneeth** | Data Scientist / Agri-Analytics Specialist | Handles datasets, preprocessing, and develops crop advisory, soil, and irrigation recommendation models.      |
-| **P R kiran kumar reddy**  | Data Scientist / Agri-Analytics Specialist | Handles datasets, preprocessing, and develops crop advisory, soil, and irrigation recommendation models.      |
-| **liel stephen**           | Cloud & Deployment Engineer                | Manages deployment on Streamlit Cloud / Vercel and optimizes app performance and reliability.                |
+| **Edupulapati Sai Praneeth** | Data Scientist / Agri-Analytics Specialist | Handles datasets, preprocessing, and develops crop advisory, soil, and irrigation recommendation models.      |
+| **P R Kiran Kumar Reddy**  | Full-Stack Developer                       | Builds the Streamlit frontend and backend API integrations, ensuring a smooth user experience.               |
+| **Liel stephen**           | Cloud & Deployment Engineer                | Manages deployment on Streamlit Cloud / Vercel and optimizes app performance and reliability.                |
 | **C R Mohith Reddy**       | UI/UX Designer & Accessibility Lead        | Designs the farmer-friendly, multilingual UI and works on report layouts and voice command integration.      |
 | **Vendodu Lahari**         | Model Integration & API Engineer           | Integrates TensorFlow/ONNX models into the app and connects external APIs (NASA POWER, Data.gov.in, etc.). |
 
