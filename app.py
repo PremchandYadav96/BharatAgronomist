@@ -87,24 +87,44 @@ def get_coords_from_place_name(place_name):
         st.error("Geocoding service is unavailable. Please try again later.")
     return None, None
 
-def get_soil_and_irrigation_suggestion(location_name):
+def get_soil_and_irrigation_suggestion(location_name, lat, lon):
     """Suggests soil and irrigation based on location using Gemini AI."""
     if not GEMINI_API_KEY: return None, None
     if not location_name: return None, None
     model = genai.GenerativeModel('gemini-1.5-flash-latest')
     prompt = f"""
-    Based on the agricultural region of '{location_name}' in India, what is the most common soil type and the predominant irrigation method?
-    Provide the answer in a single, parsable line with the following exact format:
-    Soil: [Primary Soil Type], Irrigation: [Primary Irrigation Method]
-    Example:
-    Soil: Alluvial Soil, Irrigation: Good (Drip/Sprinkler/Canal)
-    Soil: Black (Regur) Soil, Irrigation: Rain-fed (No irrigation)
+    As an agricultural expert for India, identify the most common soil type and predominant irrigation method for the following location. Use the coordinates for precision.
+
+    **Location:** {location_name}
+    **Coordinates:** Latitude: {lat}, Longitude: {lon}
+
+    **Instructions:**
+    1.  Prioritize accuracy based on the specific coordinates.
+    2.  For soil type, be specific (e.g., 'Red Sandy Loam', 'Clay Loam', 'Alluvial Soil').
+    3.  For irrigation, describe the common method (e.g., 'Canal Irrigation', 'Well Irrigation', 'Rain-fed', 'Drip Irrigation').
+    4.  Return the answer in a single, parsable line with the exact format:
+        `Soil: [Your Answer], Irrigation: [Your Answer]`
+
+    **Example:**
+    `Soil: Alluvial Soil, Irrigation: Canal Irrigation`
     """
     try:
         response = model.generate_content(prompt)
+        # Handle potential API response variations gracefully
+        if 'Soil:' not in response.text or 'Irrigation:' not in response.text:
+            print(f"Warning: Unexpected API response format: {response.text}")
+            # Attempt to find the values even if the format is off
+            soil_part = "Unknown"
+            irrigation_part = "Unknown"
+            if 'Soil:' in response.text:
+                soil_part = response.text.split('Soil:')[1].split(',')[0].strip()
+            if 'Irrigation:' in response.text:
+                irrigation_part = response.text.split('Irrigation:')[1].strip()
+            return soil_part, irrigation_part
+
         parts = response.text.strip().split(',')
-        soil = parts[0].replace('Soil:', '').strip()
-        irrigation = parts[1].replace('Irrigation:', '').strip()
+        soil = parts[0].replace('Soil:', '').replace('`', '').strip()
+        irrigation = parts[1].replace('Irrigation:', '').replace('`', '').strip()
         return soil, irrigation
     except Exception as e:
         print(f"Error suggesting soil/irrigation: {e}")
@@ -249,39 +269,54 @@ with col1:
         st.session_state['lat'], st.session_state['lon'] = lat, lon
         st.success(f"📍 Location Set: (Lat: {lat:.4f}, Lon: {lon:.4f})")
 
-        # --- Auto-suggest soil and irrigation ---
+        # Reverse geocode to get location name automatically after map click
         geolocator = Nominatim(user_agent="smart_agri_dashboard")
         try:
             location = geolocator.reverse((lat, lon), exactly_one=True)
-            location_name = location.address if location else f"{lat:.4f}, {lon:.4f}"
-            st.session_state['location_name'] = location_name
-
-            with st.spinner("AI is analyzing your region for soil and irrigation types..."):
-                soil, irrigation = get_soil_and_irrigation_suggestion(location_name)
-                if soil and irrigation:
-                    soil_options = st.session_state['soil_options'].copy()
-                    irrigation_options = st.session_state['irrigation_options'].copy()
-
-                    # Dynamically add AI-suggested soil type if not in the list
-                    if soil not in soil_options:
-                        soil_options.insert(0, soil)
-                    st.session_state['suggested_soil'] = soil_options.index(soil)
-                    st.session_state['soil_options'] = soil_options
-
-                    # Dynamically add AI-suggested irrigation type if not in the list
-                    if irrigation not in irrigation_options:
-                        irrigation_options.insert(0, irrigation)
-                    st.session_state['suggested_irrigation'] = irrigation_options.index(irrigation)
-                    st.session_state['irrigation_options'] = irrigation_options
-
-                    st.success("✅ AI suggestions for soil and irrigation have been auto-filled!")
+            if location:
+                st.session_state['location_name'] = location.address
         except (GeocoderTimedOut, GeocoderUnavailable):
-            st.error("Could not connect to geocoding service to get location name.")
-            st.session_state['location_name'] = f"{lat:.4f}, {lon:.4f}"
+            st.warning("Could not automatically fetch location name. You can enter it manually.")
+            # Do not overwrite a potentially manually entered name
+            if 'location_name' not in st.session_state:
+                 st.session_state['location_name'] = f"{lat:.4f}, {lon:.4f}"
+
 
 with col2:
     farm_size = st.number_input("Farm Size (in acres)", min_value=0.5, max_value=500.0, value=2.5, step=0.5)
-    location_name_display = st.text_input("Location Name", st.session_state.get('location_name', ''), help="Automatically fetched from map coordinates.")
+    location_name_display = st.text_input("Location Name", st.session_state.get('location_name', ''), help="Automatically fetched from map coordinates, can be edited.")
+
+    if st.button("🤖 Get AI Suggestion"):
+        if st.session_state.get('lat') and st.session_state.get('lon'):
+            lat = st.session_state['lat']
+            lon = st.session_state['lon']
+            # Use the potentially user-edited location name from the text input
+            location_name = location_name_display
+
+            with st.spinner("🤖 AI is analyzing your region..."):
+                soil, irrigation = get_soil_and_irrigation_suggestion(location_name, lat, lon)
+
+                if soil and irrigation:
+                    # Update soil options
+                    soil_options = st.session_state.get('soil_options', []).copy()
+                    if soil not in soil_options:
+                        soil_options.insert(0, soil)
+                    st.session_state['soil_options'] = soil_options
+                    st.session_state['suggested_soil'] = soil_options.index(soil)
+
+                    # Update irrigation options
+                    irrigation_options = st.session_state.get('irrigation_options', []).copy()
+                    if irrigation not in irrigation_options:
+                        irrigation_options.insert(0, irrigation)
+                    st.session_state['irrigation_options'] = irrigation_options
+                    st.session_state['suggested_irrigation'] = irrigation_options.index(irrigation)
+
+                    st.success("✅ AI suggestions have been filled!")
+                    st.rerun()
+                else:
+                    st.error("Could not retrieve AI suggestions. Please try again.")
+        else:
+            st.warning("Please select a location on the map first.")
 
 col3, col4 = st.columns(2)
 with col3:
