@@ -24,6 +24,10 @@ from nasa_power import get_yearly_summary, get_monthly_summary
 from utils.translator import t
 from utils.market_data import fetch_market_prices
 from utils.fertilizer import get_fertilizer_recommendation
+from utils.tts import text_to_speech
+import time
+
+
 
 # ====================================================================
 # Page Configuration & API Setup
@@ -231,11 +235,29 @@ def process_and_display_prediction(image_file):
             st.info("Prune affected areas, ensure proper air circulation, and use recommended organic fungicides. Avoid overhead watering.")
             st.warning("Plant disease-resistant varieties, practice crop rotation, and maintain good field sanitation.")
 
+def st_speak(text_to_speak, key):
+    if st.button(f"🔊", key=key):
+        with st.spinner("Generating audio..."):
+            try:
+                audio_file = text_to_speech(text_to_speak, lang=st.session_state.get('lang', 'en'))
+                if audio_file:
+                    st.audio(audio_file, format='audio/mp3', start_time=0)
+                    # Optional: Clean up the temp file after playing
+                    # os.remove(audio_file)
+                else:
+                    st.error("Could not generate audio.")
+            except Exception as e:
+                st.error(f"An error occurred during audio generation: {e}")
+
 # ====================================================================
 #                    STREAMLIT UI LAYOUT
 # ====================================================================
 
-st.title(f"🌱 {t('app_title')}")
+col_title, col_speaker = st.columns([0.9, 0.1])
+with col_title:
+    st.title(f"🌱 {t('app_title')}")
+with col_speaker:
+    st_speak(t('app_title'), key="title_speak")
 st.markdown(t('app_tagline'))
 st.divider()
 
@@ -251,12 +273,16 @@ if 'irrigation_options' not in st.session_state: st.session_state['irrigation_op
 # --------------------------------------------------------------------
 # 📍 Step 1: Enter Your Farm Details
 # --------------------------------------------------------------------
-st.markdown("""
+col_title, col_speaker = st.columns([0.9, 0.1])
+with col_title:
+    st.markdown(f"""
     <div style="background-color: #2E8B57; padding: 10px; border-radius: 5px;">
-        <h2 style="color: white; text-align: center;">📍 Step 1: Enter Your Farm Details</h2>
+        <h2 style="color: white; text-align: center;">{t('step1_header')}</h2>
     </div>
     """, unsafe_allow_html=True)
-st.info("Your location is used to automatically fetch weather data and provide AI-powered suggestions.")
+with col_speaker:
+    st_speak(t('step1_header'), key="step1_speak")
+st.info(t('step1_info'))
 
 col1, col2 = st.columns([2, 1])
 with col1:
@@ -329,12 +355,16 @@ st.divider()
 # --------------------------------------------------------------------
 # 🌾 Step 2: AI Crop & Climate Report
 # --------------------------------------------------------------------
-st.markdown("""
+col_title, col_speaker = st.columns([0.9, 0.1])
+with col_title:
+    st.markdown(f"""
     <div style="background-color: #2E8B57; padding: 10px; border-radius: 5px;">
-        <h2 style="color: white; text-align: center;">🌾 Step 2: AI Crop & Climate Report</h2>
+        <h2 style="color: white; text-align: center;">{t('step2_header')}</h2>
     </div>
     """, unsafe_allow_html=True)
-st.info("Get a unified report with detailed climate analysis and crop suggestions for your farm.")
+with col_speaker:
+    st_speak(t('step2_header'), key="step2_speak")
+st.info(t('step2_info'))
 if st.button("📝 Generate Combined Agri-Report"):
     if not st.session_state['lat'] or not st.session_state['lon']:
         st.warning("Please set your farm location in Step 1 first.")
@@ -358,12 +388,16 @@ st.divider()
 # --------------------------------------------------------------------
 # 🍃 Step 3: Plant Health Check (Image Upload)
 # --------------------------------------------------------------------
-st.markdown("""
+col_title, col_speaker = st.columns([0.9, 0.1])
+with col_title:
+    st.markdown(f"""
     <div style="background-color: #2E8B57; padding: 10px; border-radius: 5px;">
-        <h2 style="color: white; text-align: center;">🍃 Step 3: Plant Health Check (Image Upload)</h2>
+        <h2 style="color: white; text-align: center;">{t('step3_header')}</h2>
     </div>
     """, unsafe_allow_html=True)
-st.info("Upload an image of a plant leaf to detect diseases.")
+with col_speaker:
+    st_speak(t('step3_header'), key="step3_speak")
+st.info(t('step3_info'))
 uploaded_file = st.file_uploader("Upload a leaf image", type=["jpg", "png", "jpeg"])
 if uploaded_file:
     process_and_display_prediction(uploaded_file)
@@ -372,12 +406,16 @@ st.divider()
 # --------------------------------------------------------------------
 # 📸 Step 4: Live Plant Health Check (Webcam)
 # --------------------------------------------------------------------
-st.markdown("""
+col_title, col_speaker = st.columns([0.9, 0.1])
+with col_title:
+    st.markdown(f"""
     <div style="background-color: #2E8B57; padding: 10px; border-radius: 5px;">
-        <h2 style="color: white; text-align: center;">📸 Step 4: Live Plant Health Check (Webcam)</h2>
+        <h2 style="color: white; text-align: center;">{t('step4_header')}</h2>
     </div>
     """, unsafe_allow_html=True)
-st.info("Use your camera to detect plant diseases in real-time.")
+with col_speaker:
+    st_speak(t('step4_header'), key="step4_speak")
+st.info(t('step4_info'))
 
 class VideoTransformer(VideoTransformerBase):
     def __init__(self, plant_model, class_labels):
@@ -416,12 +454,16 @@ st.divider()
 # --------------------------------------------------------------------
 # ☀️ Step 5: Weather Insights & Forecast
 # --------------------------------------------------------------------
-st.markdown("""
+col_title, col_speaker = st.columns([0.9, 0.1])
+with col_title:
+    st.markdown(f"""
     <div style="background-color: #2E8B57; padding: 10px; border-radius: 5px;">
-        <h2 style="color: white; text-align: center;">☀️ Step 5: Weather Insights & Forecast</h2>
+        <h2 style="color: white; text-align: center;">{t('step5_header')}</h2>
     </div>
     """, unsafe_allow_html=True)
-st.info("Get current and historical weather data for your location.")
+with col_speaker:
+    st_speak(t('step5_header'), key="step5_speak")
+st.info(t('step5_info'))
 if st.button("📊 Fetch Weather Analysis"):
     if not st.session_state['lat'] or not st.session_state['lon']:
         st.warning("Please set your farm location in Step 1 first.")
@@ -451,12 +493,16 @@ st.divider()
 # --------------------------------------------------------------------
 # 💰 Step 6: Market Prices
 # --------------------------------------------------------------------
-st.markdown("""
+col_title, col_speaker = st.columns([0.9, 0.1])
+with col_title:
+    st.markdown(f"""
     <div style="background-color: #2E8B57; padding: 10px; border-radius: 5px;">
-        <h2 style="color: white; text-align: center;">💰 Step 6: Market Prices</h2>
+        <h2 style="color: white; text-align: center;">{t('step6_header')}</h2>
     </div>
     """, unsafe_allow_html=True)
-st.info("Get the latest market prices for your crops from various markets in India.")
+with col_speaker:
+    st_speak(t('step6_header'), key="step6_speak")
+st.info(t('step6_info'))
 
 commodity = st.text_input("Enter a crop name (e.g., 'Wheat', 'Paddy')", key="market_crop")
 if st.button("📈 Fetch Market Prices"):
@@ -485,12 +531,16 @@ st.divider()
 # --------------------------------------------------------------------
 # 🌿 Step 7: Fertilizer Recommendation
 # --------------------------------------------------------------------
-st.markdown("""
+col_title, col_speaker = st.columns([0.9, 0.1])
+with col_title:
+    st.markdown(f"""
     <div style="background-color: #2E8B57; padding: 10px; border-radius: 5px;">
-        <h2 style="color: white; text-align: center;">🌿 Step 7: Fertilizer Recommendation</h2>
+        <h2 style="color: white; text-align: center;">{t('step7_header')}</h2>
     </div>
     """, unsafe_allow_html=True)
-st.info("Get fertilizer recommendations based on your soil type and crop.")
+with col_speaker:
+    st_speak(t('step7_header'), key="step7_speak")
+st.info(t('step7_info'))
 
 crop_list = [
     "Apple", "Banana", "Barley", "Brinjal", "Cashew", "Coconut", "Coffee", "Cotton",
